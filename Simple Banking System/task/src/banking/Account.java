@@ -1,175 +1,123 @@
 package banking;
 
-import org.sqlite.SQLiteDataSource;
-
-import java.sql.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.Scanner;
+import java.util.*;
 
 public class Account {
 
-    private static String accountNumber;
-    private static String accountPin;
-    private final Map<String, String> mapsOfAccounts;
-    private SQLiteDataSource database;
-    private boolean dbCreated;
+    private String accountNumber;
+    private String accountPin;
+    private int balance;
+    private int id;
 
-    static int id = 101;
-
-    public Account(String pathToDatabase) {
-        this.mapsOfAccounts = new HashMap<>();
-        this.database = new SQLiteDataSource();
-        this.database.setUrl("jdbc:sqlite:" + pathToDatabase);
-
-        this.dbCreated = false;
+    public Account() {
     }
 
-    public void menu() {
-        bankLogin();
-
+    public Account(String arg) {
     }
 
-    public void bankLogin() {
-
-        if (!dbCreated) {
-            createDatabase();
-            dbCreated = true;
-        }
-
-        while (true) {
-            Scanner scanner = new Scanner(System.in);
-            System.out.println("1. Create an account");
-            System.out.println("2. Log into account");
-            System.out.println("0. Exit");
-
-            int action = scanner.nextInt();
-
-            switch (action) {
-                case 1:
-                    createAccount();
-                    break;
-
-                case 2:
-                    logIntoAccount(accountNumber, accountPin);
-                    break;
-                case 0:
-                    exitAccount();
-                    break;
-            }
-
-        }
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
     }
 
-    public void createAccount() {
+    public void setAccountPin(String accountPin) {
+        this.accountPin = accountPin;
+    }
 
-        Random random = new Random();
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setBalance(int balance) {
+        this.balance = balance;
+    }
+
+    public int getBalance() {
+        return balance;
+    }
+
+    public String getNewCardNumber() {
+        return accountNumber;
+    }
+
+    public String getNewPin() {
+        return accountPin;
+    }
+
+    public String createNewCardNumber() {
 
         String bin = "400000";
-        long number = random.nextInt(999_999_999 - 100_000_000 + 1) + 100_000_000;
-        accountPin = String.valueOf(random.nextInt(9999 - 1000 + 1) + 1000);
-        String cardNumbers = bin + number;
 
-        int sum = 0;
-        boolean second = false;
+        Random random = new Random();
+        StringBuilder customerAccountNumber = new StringBuilder(String.valueOf(random.nextInt(Integer.MAX_VALUE)));
 
-        for (int i = cardNumbers.length() - 1; i >= 0; --i) {
-            int digit = Character.getNumericValue(cardNumbers.charAt(i));
-            digit = (second = !second) ? (digit * 2) : digit;
-            digit = (digit > 9) ? (digit - 9) : digit;
-            sum += digit;
-        }
-        int lastDigit = (sum * 9) % 10;
-        accountNumber = cardNumbers + lastDigit;
+        if (customerAccountNumber.length() > 9) {
+            customerAccountNumber.deleteCharAt(random.nextInt(customerAccountNumber.length()));
+        } else if (customerAccountNumber.length() < 9) {
 
-
-        System.out.println("Your card has been created");
-        System.out.println("Your card number:");
-        System.out.println(accountNumber);
-        System.out.println("Your card PIN:");
-        System.out.println(accountPin);
-        mapsOfAccounts.put(accountNumber, accountPin);
-        saveCardToDatabase(accountNumber, accountPin);
-        bankLogin();
-
-    }
-
-
-    public void logIntoAccount(String cardNumber, String pin) {
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("Input card number:");
-        String inputCardNumber = scanner.next();
-        System.out.println("Input PIN:");
-        String inputCardPin = scanner.next();
-
-        if (!mapsOfAccounts.containsKey(inputCardNumber) || !mapsOfAccounts.get(inputCardNumber).equals(inputCardPin)) {
-            System.out.println("Wrong card number or PIN!");
-            bankLogin();
-        } else {
-            System.out.println("You have successfully logged in!");
-            logInSuccess();
-        }
-    }
-
-    public void logInSuccess() {
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("1. Balance");
-        System.out.println("2. Log out");
-        System.out.println("0. Exit");
-        int action = scanner.nextInt();
-
-        switch(action) {
-            case 1:
-                System.out.println("Balance: 0");
-                logInSuccess();
-                break;
-            case 2:
-                System.out.println("You have successfully logged out!");
-                bankLogin();
-                break;
-            case 0:
-                exitAccount();
-                break;
-
-        }
-    }
-    public void exitAccount() {
-        System.out.println("Bye!");
-        System.exit(0);
-    }
-
-    private void createDatabase() {
-
-        String createTable = "CREATE TABLE IF NOT EXISTS card ("
-                + "      id INTEGER PRIMARY KEY,"
-                + "      NUMBER text,"
-                + "      pin TEXT,"
-                + "      balance INTEGER DEFAULT 0"
-                + ");";
-
-        try (Connection connection = this.database.getConnection()) {
-            try (Statement statement = connection.createStatement()) {
-                statement.executeUpdate(createTable);
+            while (customerAccountNumber.length() < 9) {
+                customerAccountNumber.insert(0, 0);
             }
-        } catch (SQLException e){
-            System.out.println("Exception");
         }
+
+        String checksum = String.valueOf(generateChecksum(bin + customerAccountNumber));
+
+        accountNumber = bin + customerAccountNumber + checksum;
+        return accountNumber;
     }
 
-    private void saveCardToDatabase(String accountNumber, String accountPin) {
-        String command = "INSERT INTO card(id, number, pin, balance) VALUES (?,?,?,?);";
 
-        try (Connection connection = database.getConnection() ;
-             PreparedStatement statement = connection.prepareStatement(command)) {
+    public int generateChecksum(String initialNumber) {
 
-            statement.setInt(1, id);
-            statement.setString(2, accountNumber);
-            statement.setString(3, accountPin);
-            statement.executeUpdate();
-            id++;
-        } catch (SQLException e) {
-            System.out.println("Exception");
+        int total = 0;
+
+        for (int i = 1; i <= initialNumber.length(); i++) {
+
+            int current = ((int) initialNumber.charAt(i - 1) - 48);
+
+            if (i % 2 == 1) {
+
+                current *= 2;
+
+                if (current > 9) {
+                    current -= 9;
+                }
+
+            }
+            total += current;
         }
+
+        int checkSum = 0;
+        while ((total + checkSum) % 10 > 0) {
+            checkSum++;
+        }
+
+        return checkSum;
+    }
+
+    public void createNewPin() {
+
+        accountPin = String.valueOf(new Random().nextInt((9999 - 1000) + 1) + 1000);
+    }
+
+    public boolean checkLuhnAlgorithm(String accountNumberCheck) {
+        int sum = 0;
+        boolean alternate = false;
+        for (int i = accountNumberCheck.length() - 1; i >= 0; i--) {
+            int n = Integer.parseInt(accountNumberCheck.substring(i, i + 1));
+            if (alternate) {
+                n *= 2;
+                if (n > 9) {
+                    n = (n % 10) + 1;
+                }
+            }
+            sum += n;
+            alternate = !alternate;
+        }
+        return (sum % 10 == 0);
     }
 }
